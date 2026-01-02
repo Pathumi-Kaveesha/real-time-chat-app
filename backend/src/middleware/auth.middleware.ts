@@ -19,7 +19,7 @@ export const protectRoute = async (
     }
 
     const decoded = jwt.verify(
-      token,
+      token, 
       process.env.JWT_SECRET as string
     ) as DecodedToken;
 
@@ -34,6 +34,6 @@ export const protectRoute = async (
 
   } catch (error: any) {
     console.log("Error in protectRoute middleware", error.message);
-    return res.status(401).json({ message: "Unauthorized - Invalid Token" });
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
