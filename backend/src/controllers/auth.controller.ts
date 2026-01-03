@@ -5,6 +5,10 @@ import { generateToken } from "../lib/utils";
 import cloudinary from "../lib/cloudinary";
 
 
+interface AuthRequest extends Request {
+  user?: any; // your authenticated user from protectRoute
+}
+
 export const signup = async (req: Request, res: Response) => {
     const {fullName, email, password} = req.body;
     try{
@@ -89,25 +93,30 @@ export const logout = (req: Request, res: Response) => {
     }
 }
 
-export const updateProfile = async(req: Request, res: Response) => {
-    try{
-        const {profilePic} = req.body;
-        const userId = (req as any).user._id;
+export const updateProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    const { profilePic } = req.body;
+    const userId = req.user?._id;
 
-        if(!profilePic){
-            return res.status(400).json({message: "Profile pic is required"}); 
-        }
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!profilePic) return res.status(400).json({ message: "Profile pic is required" });
 
-        const uploadResponse = await cloudinary.uploader.upload(profilePic);
-        const updatedUser = await User.findByIdAndUpdate(userId, {profilePic: uploadResponse.secure_url}, {new: true});
-        res.status(200).json(updatedUser)
+    const uploadResponse = await cloudinary.uploader.upload(profilePic, {
+      folder: "profile_pics",
+    });
 
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { profilePic: uploadResponse.secure_url },
+      { new: true }
+    ).select("-password");
 
-    }catch(error: any){
-        console.log("Error in update profile ", error.message);
-        return res.status(500).json({message: "Internal Server Error"});
-    }
-}
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    console.log("Error in updateProfile:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 
 export const checkAuth = (req: Request, res: Response) => {
