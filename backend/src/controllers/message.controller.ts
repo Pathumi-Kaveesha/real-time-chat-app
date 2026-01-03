@@ -2,12 +2,16 @@ import { Request, Response } from "express";
 import User from "../models/user.model";
 import Message from "../models/message.model";
 import cloudinary from "../lib/cloudinary";
+import { io , getReceriverSocketId } from "../lib/socket";
 
 export const getUsersForSideBar = async(req: Request,res: Response) => {
     try{
-        const loggedInUserId = (req as any).user._id;
-        const filteredUsers = await User.find({_id: {$ne: loggedInUserId}}).select("-password")
-        res.status(200).json(filteredUsers)
+    
+        const user = (req as any).user;
+        if (!user) return res.status(401).json({message: "Unauthorized"});
+
+        const filteredUsers = await User.find({_id: {$ne: user._id}}).select("-password");
+        return res.status(200).json(filteredUsers);
     }catch(error: any){
         console.log("Error in getUsersForSideBar controller ", error.message);
         return res.status(500).json({message: "Internal Server Error"});
@@ -18,6 +22,7 @@ export const getMessages = async(req: Request,res: Response) => {
     try{
         const {id:userToChatId} = req.params;
         const myId = (req as any).user._id;
+        console.log(myId);
 
         const messages = await Message.find({
             $or: [
@@ -56,7 +61,10 @@ export const sendMessage = async(req: Request,res: Response) => {
 
         await newMessage.save();
 
-        //todo: realtime functionality goes here => socket.io
+        const receiverSocketId = getReceriverSocketId(receiverId);
+        if(receiverSocketId){
+             io.to(receiverSocketId).emit("newMessage", newMessage)
+        }
 
         res.status(201).json(newMessage);
 
